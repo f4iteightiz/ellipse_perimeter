@@ -1,0 +1,118 @@
+; Ellipse perimeter calculation according MAGM and AGM
+; ELPER.TXT
+;
+; under CC BY SA CreativeCommons 4.0 floppy @ https://www.hpmuseum.org
+;
+; change log
+;  2023 04 16 creation
+;
+; verification https://www.mathsisfun.com/geometry/ellipse-perimeter.html
+; 
+; Register overwritten
+;   00  a then later a**2..
+;   01  b then later b**2..
+;   02  zn   parameter
+;   03  AGM  temporary result
+;   
+LBL "ELPER" 
+;                    X   Y   Z   T
+STO 00            ;  a   b
+                  ;  ... a in R00  
+X=0?
+GOTO 00
+X<>Y
+X=0?
+GOTO 00
+STO 01            ; ... b in R01
+CF 00             ;  clear the flag 00 used in AGM
+XEQ 01            ; "AGM"
+STO 03            ; ... agm in R03
+0
+STO 02
+RCL 00
+X^2 
+STO 00            ; a^2
+                  ; R00 content modified
+RCL 01
+X^2
+STO 01            ; b^2
+                  ; R01 content modified
+CF 00
+XEQ 02            ; "MAGM"
+RCL 03
+/
+2
+*
+PI
+*
+RTN
+;
+; MAGM calculation with recursive function
+;   http://www.ams.org/notices/201208/rtx120801094p.pdf
+;
+; under CC BY SA CreativeCommons 4.0 floppy @ https://www.hpmuseum.org
+;
+LBL 02  
+;                   X                      Y                      Z          T
+;                   an                     bn  
++
+2
+/               ; (an+bn)/2
+RCL 00
+RCL 01
+RCL 02          ;  zn                       bn                    an         (an+bn)/2
+ST- Y 
+ST- Z           ;  zn                       an-zn                 bn-zn      (an+bn)/2
+X<> Z           ;  bn-zn                    an-zn                 zn         (an+bn)/2
+*               ;  (an-zn)*(bn-zn)          zn                    (an+bn)/2  (an+bn)/2
+SQRT            ;  SQRT((an-zn)*(bn-zn))    zn                    (an+bn)/2  (an+bn)/2
++               ;  (SQRT(an-zn)*(bn-zn))+zn (an+bn)/2             (an+bn)/2  (an+bn)/2
+; update bN in R01
+STO 01          ;  bN                       (an+bn)/2             (an+bn)/2  (an+bn)/2
+LASTX           ;  (SQRT(an-zn)*(bn-zn))    bN                    (an+bn)/2  (an+bn)/2
+RCL 02          ;  zn                       SQRT((an-zn)*(bn-zn)) bN         (a+b)/2
+-
+CHS             ;  zn-(SQRT(an-zn)*(bn-zn)) bN                    (an+bn)/2  (an+bn)/2
+; update zn in R02
+STO 02          ;  zN                       bN                    (an+bn)/2  (an+bn)/2
+RDN             ;  bN                       (an+bn)/2             (an+bn)/2  zN
+ENTER           ;  bN                       bN                    (an+bn)/2  (an+bn)/2
+X<> Z           ;  (an+bn)/2                bN                    bN         (an+bn)/2
+; update an in R00
+STO 00          ;  aN                       bN                    bN         aN
+X=Y?
+SF 00           ; convergence according cal precision achieved
+FC?C 00
+GOTO 02
+RTN
+;
+; AGM calculation with recursive function
+;   https://de.wikipedia.org/wiki/Arithmetisch-geometrisches_Mittel
+;
+LBL 01           ;  X        Y        Z    T
+;                   a        b
+STO Z            ;  a        b        a
+X<>Y             ;  b        a        a
+ST+ Z            ;  b        a        a+b
+STO T            ;  b        a        a+b b
+*                ;  ba       a+b      b   b
+SQRT             ;  sqrt(ba) a+b      b   b
+R^               ;  b        sqrt(ba) a+b b 
+X=Y?
+SF 00            ; convergence according cal precision achieved
+RDN              ;  sqrt(ba) a+b  b   b
+X<>Y
+2
+/                ; (a+b)/2  SQRT(ab)  b   b
+;                    =a        =b   below..
+;X#Y?            ; using this comparison here will show convergence issues
+FC?C 00
+GOTO 01
+RTN
+;
+LBL 00
++
+4
+*
+RTN
+END
